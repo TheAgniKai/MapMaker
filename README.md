@@ -37,6 +37,12 @@ The project is still under development, but a typical command to generate a map 
 python map_generator.py --width 1200 --height 800 --output sample_map.png
 ```
 
+You can also use resolution presets (1080p, 4k, 8k) or generate districts:
+
+```bash
+python map_generator.py --preset 4k --districts 3 --output big_map.png
+```
+
 This would produce a map saved as `sample_map.png` in the current directory.
 
 ## Generating a Sample Map
@@ -57,6 +63,6 @@ An experimental GUI editor is available for interactive map creation. Launch it 
 python gui_editor.py --width 1200 --height 800
 ```
 
-Use the toolbar on the right to choose between buildings, roads, rivers, and districts. Click and drag on the canvas to place elements. Press **Save** to export your map to a PNG file.
+Use the toolbar on the right to choose between buildings, roads, rivers, and districts. A drop-down lets you pick a resolution preset and how many districts to generate. Press **Generate Map** to fill the canvas automatically, then refine the result manually. Press **Save** to export your map to a PNG file.
 
 

@@ -18,6 +18,16 @@ class MapEditor(tk.Tk):
         self.toolbar = ttk.Frame(self)
         self.toolbar.pack(side=tk.RIGHT, fill=tk.Y)
 
+        ttk.Label(self.toolbar, text="Resolution").pack()
+        self.res_var = tk.StringVar(value="Custom")
+        presets = ["Custom"] + list(mg.RESOLUTION_PRESETS.keys())
+        self.res_menu = ttk.OptionMenu(self.toolbar, self.res_var, self.res_var.get(), *presets, command=self.on_resolution_select)
+        self.res_menu.pack(fill=tk.X)
+
+        ttk.Label(self.toolbar, text="Districts").pack(pady=(5, 0))
+        self.district_var = tk.IntVar(value=0)
+        ttk.Spinbox(self.toolbar, from_=0, to=20, textvariable=self.district_var, width=5).pack(fill=tk.X)
+
         self.element = tk.StringVar(value="rectangle")
         options = [
             ("Rectangle Building", "rectangle"),
@@ -31,6 +41,7 @@ class MapEditor(tk.Tk):
         ]
         for text, value in options:
             ttk.Radiobutton(self.toolbar, text=text, variable=self.element, value=value).pack(anchor=tk.W)
+        ttk.Button(self.toolbar, text="Generate Map", command=self.generate_map).pack(fill=tk.X, pady=5)
         ttk.Button(self.toolbar, text="Save", command=self.save_image).pack(fill=tk.X, pady=10)
 
         self.shapes = []
@@ -41,6 +52,15 @@ class MapEditor(tk.Tk):
         self.canvas.bind("<ButtonPress-1>", self.on_press)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
+
+    def on_resolution_select(self, value):
+        if value in mg.RESOLUTION_PRESETS:
+            w, h = mg.RESOLUTION_PRESETS[value]
+            if mg.validate_resolution(w, h):
+                self.width = w
+                self.height = h
+                self.canvas.config(width=w, height=h)
+        self.res_var.set(value)
 
     def on_press(self, event):
         self.start_x = event.x
@@ -102,11 +122,42 @@ class MapEditor(tk.Tk):
                     mg.draw_polygon(draw, poly)
         img.save(path)
 
+    def generate_map(self):
+        self.canvas.delete("all")
+        self.shapes.clear()
+        data = mg.generate_map_data(
+            self.width,
+            self.height,
+            num_shapes=10,
+            num_districts=self.district_var.get(),
+        )
+        for box in data["districts"]:
+            self.canvas.create_rectangle(box, outline="gray", width=2)
+            self.shapes.append(("district", box))
+        for shape_type, shape_data in data["buildings"]:
+            if shape_type == "polygon":
+                self.canvas.create_polygon(shape_data, fill=mg.SHAPE_COLOR)
+                self.shapes.append(("polygon", shape_data))
+            else:
+                if shape_type == "l":
+                    box = shape_data
+                else:
+                    box = shape_data
+                self.canvas.create_rectangle(box, outline=mg.SHAPE_COLOR)
+                self.shapes.append((shape_type, box))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Launch the map editor")
     parser.add_argument("--width", type=int, default=mg.DEFAULT_WIDTH, help="canvas width")
     parser.add_argument("--height", type=int, default=mg.DEFAULT_HEIGHT, help="canvas height")
+    parser.add_argument("--preset", choices=["1080p", "4k", "8k"], help="resolution preset")
     args = parser.parse_args()
+
+    if args.preset:
+        args.width, args.height = mg.RESOLUTION_PRESETS[args.preset]
+    if not mg.validate_resolution(args.width, args.height):
+        parser.error(f"Resolution must be within 1x1 and {mg.MAX_WIDTH}x{mg.MAX_HEIGHT}")
+
     app = MapEditor(width=args.width, height=args.height)
     app.mainloop()
