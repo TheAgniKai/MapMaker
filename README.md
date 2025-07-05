@@ -31,10 +31,10 @@ MapMaker is a project aimed at creating a simple map generator for tabletop game
 
 ## Usage Example
 
-The project is still under development, but a typical command to generate a map might look like:
+The project is still under development, but a typical command to generate a map with a custom size might look like:
 
 ```bash
-python generate_map.py --width 800 --height 600 --output sample_map.png
+python map_generator.py --width 1200 --height 800 --output sample_map.png
 ```
 
 This would produce a map saved as `sample_map.png` in the current directory.
@@ -44,21 +44,19 @@ This would produce a map saved as `sample_map.png` in the current directory.
 Once the generator script is implemented, you can create a quick sample map with default settings using:
 
 ```bash
-python generate_map.py --output sample_map.png
+python map_generator.py --output sample_map.png
 ```
 
 Check the generated image file to view the result.
 
 ## GUI Editor
 
-An experimental GUI editor is available for interactive map creation. Launch it with:
+An experimental GUI editor is available for interactive map creation. Launch it with optional width and height parameters:
 
 ```bash
-python gui_editor.py
+python gui_editor.py --width 1200 --height 800
 ```
 
-Use the toolbar on the right to choose between buildings, roads, and walls. Click
-and drag on the canvas to place elements. Press **Save** to export your map to a
-PNG file.
+Use the toolbar on the right to choose between buildings, roads, rivers, and districts. Click and drag on the canvas to place elements. Press **Save** to export your map to a PNG file.
 
 
