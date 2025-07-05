@@ -3,6 +3,7 @@ from tkinter import filedialog, ttk
 from PIL import Image, ImageDraw
 
 import argparse
+import random
 import map_generator as mg
 
 
@@ -41,10 +42,18 @@ class MapEditor(tk.Tk):
         ]
         for text, value in options:
             ttk.Radiobutton(self.toolbar, text=text, variable=self.element, value=value).pack(anchor=tk.W)
+        self.political_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            self.toolbar,
+            text="Political View",
+            variable=self.political_var,
+            command=self.render_canvas,
+        ).pack(anchor=tk.W, pady=(5, 5))
+
         ttk.Button(self.toolbar, text="Generate Map", command=self.generate_map).pack(fill=tk.X, pady=5)
         ttk.Button(self.toolbar, text="Save", command=self.save_image).pack(fill=tk.X, pady=10)
 
-        self.shapes = []
+        self.shapes = []  # list of shape dictionaries
         self.start_x = None
         self.start_y = None
         self.temp_shape = None
@@ -52,6 +61,45 @@ class MapEditor(tk.Tk):
         self.canvas.bind("<ButtonPress-1>", self.on_press)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
+
+    def render_canvas(self):
+        """Redraw all shapes according to the current political view setting."""
+        self.canvas.delete("all")
+        for shape in self.shapes:
+            self._draw_shape(shape)
+
+    def _draw_shape(self, shape):
+        elem = shape["type"]
+        coords = shape["coords"]
+        if elem == "road":
+            self.canvas.create_line(coords, fill=mg.SHAPE_COLOR, width=3)
+        elif elem == "wall":
+            self.canvas.create_line(coords, fill=mg.SHAPE_COLOR, width=5)
+        elif elem == "river":
+            self.canvas.create_line(coords, fill="blue", width=4)
+        elif elem == "district":
+            if self.political_var.get() and "color" in shape:
+                self.canvas.create_rectangle(
+                    coords, outline="gray", fill=shape["color"], width=2
+                )
+            else:
+                self.canvas.create_rectangle(coords, outline="gray", width=2)
+        elif elem == "polygon":
+            if isinstance(coords[0], (tuple, list)):
+                self.canvas.create_polygon(coords, fill=mg.SHAPE_COLOR)
+            else:
+                x1, y1, x2, y2 = coords
+                box = (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+                poly = mg.random_polygon_from_box(box)
+                self.canvas.create_polygon(poly, fill=mg.SHAPE_COLOR)
+        else:
+            x1, y1, x2, y2 = coords
+            if elem == "square":
+                side = min(abs(x2 - x1), abs(y2 - y1))
+                x2 = x1 + side if x2 > x1 else x1 - side
+                y2 = y1 + side if y2 > y1 else y1 - side
+            box = (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+            self.canvas.create_rectangle(box, outline=mg.SHAPE_COLOR)
 
     def on_resolution_select(self, value):
         if value in mg.RESOLUTION_PRESETS:
@@ -84,8 +132,12 @@ class MapEditor(tk.Tk):
             return
         elem = self.element.get()
         coords = (self.start_x, self.start_y, event.x, event.y)
-        self.shapes.append((elem, coords))
+        shape = {"type": elem, "coords": coords}
+        if elem == "district":
+            shape["color"] = random.choice(mg.DISTRICT_COLORS)
+        self.shapes.append(shape)
         self.temp_shape = None
+        self.render_canvas()
 
     def save_image(self):
         path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG", "*.png")])
@@ -93,7 +145,9 @@ class MapEditor(tk.Tk):
             return
         img = Image.new("RGB", (self.width, self.height), mg.BG_COLOR)
         draw = ImageDraw.Draw(img)
-        for elem, coords in self.shapes:
+        for shape in self.shapes:
+            elem = shape["type"]
+            coords = shape["coords"]
             if elem == "road":
                 draw.line(coords, fill=mg.SHAPE_COLOR, width=3)
             elif elem == "wall":
@@ -101,7 +155,12 @@ class MapEditor(tk.Tk):
             elif elem == "river":
                 draw.line(coords, fill="blue", width=4)
             elif elem == "district":
-                draw.rectangle(coords, outline="gray", width=2)
+                if self.political_var.get() and "color" in shape:
+                    draw.rectangle(
+                        coords, outline="gray", fill=shape["color"], width=2
+                    )
+                else:
+                    draw.rectangle(coords, outline="gray", width=2)
             else:
                 x1, y1, x2, y2 = coords
                 if elem == "square":
@@ -131,20 +190,16 @@ class MapEditor(tk.Tk):
             num_shapes=10,
             num_districts=self.district_var.get(),
         )
-        for box in data["districts"]:
-            self.canvas.create_rectangle(box, outline="gray", width=2)
-            self.shapes.append(("district", box))
+        for dist in data["districts"]:
+            shape = {"type": "district", "coords": dist["box"], "color": dist["color"]}
+            self.shapes.append(shape)
         for shape_type, shape_data in data["buildings"]:
             if shape_type == "polygon":
-                self.canvas.create_polygon(shape_data, fill=mg.SHAPE_COLOR)
-                self.shapes.append(("polygon", shape_data))
+                shape = {"type": "polygon", "coords": shape_data}
             else:
-                if shape_type == "l":
-                    box = shape_data
-                else:
-                    box = shape_data
-                self.canvas.create_rectangle(box, outline=mg.SHAPE_COLOR)
-                self.shapes.append((shape_type, box))
+                shape = {"type": shape_type, "coords": shape_data}
+            self.shapes.append(shape)
+        self.render_canvas()
 
 
 if __name__ == "__main__":

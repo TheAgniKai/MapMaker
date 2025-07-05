@@ -16,6 +16,16 @@ RESOLUTION_PRESETS = {
 BG_COLOR = "white"
 SHAPE_COLOR = "black"
 
+# A palette of colors used for political districts
+DISTRICT_COLORS = [
+    "#f4aaaa",
+    "#a8d5a2",
+    "#a2b5d5",
+    "#f4e2a2",
+    "#e2a2f4",
+    "#a2f4f4",
+]
+
 
 def intersects(a, b):
     ax1, ay1, ax2, ay2 = a
@@ -95,7 +105,7 @@ def generate_districts(width, height, count, max_attempts=1000):
             attempts += 1
             continue
         boxes.append(box)
-        districts.append(box)
+        districts.append({"box": box, "color": random.choice(DISTRICT_COLORS)})
     return districts
 
 
@@ -120,8 +130,10 @@ def draw_map(filename="map.png", width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, num
             draw_polygon(draw, shape_data)
         else:
             draw.rectangle(shape_data, fill=SHAPE_COLOR)
-    for box in data["districts"]:
-        draw.rectangle(box, outline="gray", width=2)
+    for district in data["districts"]:
+        box = district["box"]
+        color = district["color"]
+        draw.rectangle(box, outline="gray", fill=color, width=2)
     img.save(filename)
     print(f"Map saved to {filename}")
 
