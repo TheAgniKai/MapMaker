@@ -16,6 +16,14 @@ RESOLUTION_PRESETS = {
 BG_COLOR = "white"
 SHAPE_COLOR = "black"
 
+# Distinct colors used to fill districts when generating a political map. The
+# list can be expanded as needed. Colors will be cycled through if more
+# districts than colors are requested.
+DISTRICT_COLORS = [
+    "#e6194b", "#3cb44b", "#ffe119", "#0082c8", "#f58231",
+    "#911eb4", "#46f0f0", "#f032e6", "#d2f53c", "#fabebe",
+]
+
 
 def intersects(a, b):
     ax1, ay1, ax2, ay2 = a
@@ -81,7 +89,10 @@ def random_polygon_from_box(box, min_vertices=3, max_vertices=6):
 
 
 def generate_districts(width, height, count, max_attempts=1000):
-    """Generate rectangular district areas that do not overlap."""
+    """Generate rectangular district areas that do not overlap.
+
+    Each district is returned as a (box, color) pair.
+    """
     districts = []
     boxes = []
     attempts = 0
@@ -95,7 +106,8 @@ def generate_districts(width, height, count, max_attempts=1000):
             attempts += 1
             continue
         boxes.append(box)
-        districts.append(box)
+        color = DISTRICT_COLORS[len(districts) % len(DISTRICT_COLORS)]
+        districts.append((box, color))
     return districts
 
 
@@ -109,7 +121,14 @@ def generate_map_data(width, height, num_shapes=10, num_districts=0):
     }
 
 
-def draw_map(filename="map.png", width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, num_shapes=10, num_districts=0):
+def draw_map(
+    filename="map.png",
+    width=DEFAULT_WIDTH,
+    height=DEFAULT_HEIGHT,
+    num_shapes=10,
+    num_districts=0,
+    political_map=False,
+):
     img = Image.new("RGB", (width, height), BG_COLOR)
     draw = ImageDraw.Draw(img)
     data = generate_map_data(width, height, num_shapes, num_districts)
@@ -120,8 +139,9 @@ def draw_map(filename="map.png", width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, num
             draw_polygon(draw, shape_data)
         else:
             draw.rectangle(shape_data, fill=SHAPE_COLOR)
-    for box in data["districts"]:
-        draw.rectangle(box, outline="gray", width=2)
+    for box, color in data["districts"]:
+        fill = color if political_map else None
+        draw.rectangle(box, outline="gray", width=2, fill=fill)
     img.save(filename)
     print(f"Map saved to {filename}")
 
@@ -134,6 +154,7 @@ if __name__ == "__main__":
     parser.add_argument("--num-shapes", type=int, default=10, help="number of buildings")
     parser.add_argument("--districts", type=int, default=0, help="number of districts to generate")
     parser.add_argument("--output", type=str, default="map.png", help="output image path")
+    parser.add_argument("--political-map", action="store_true", help="fill districts with color")
     args = parser.parse_args()
 
     if args.preset:
@@ -147,4 +168,5 @@ if __name__ == "__main__":
         height=args.height,
         num_shapes=args.num_shapes,
         num_districts=args.districts,
+        political_map=args.political_map,
     )

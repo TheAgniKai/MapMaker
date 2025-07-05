@@ -28,6 +28,10 @@ class MapEditor(tk.Tk):
         self.district_var = tk.IntVar(value=0)
         ttk.Spinbox(self.toolbar, from_=0, to=20, textvariable=self.district_var, width=5).pack(fill=tk.X)
 
+        # Toggle for displaying districts as colored political regions
+        self.political_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.toolbar, text="Political Map", variable=self.political_var).pack(anchor=tk.W, pady=(5, 5))
+
         self.element = tk.StringVar(value="rectangle")
         options = [
             ("Rectangle Building", "rectangle"),
@@ -84,7 +88,20 @@ class MapEditor(tk.Tk):
             return
         elem = self.element.get()
         coords = (self.start_x, self.start_y, event.x, event.y)
-        self.shapes.append((elem, coords))
+        if elem == "district" and self.political_var.get():
+            color = mg.DISTRICT_COLORS[
+                len([s for s in self.shapes if s[0] == "district"]) % len(mg.DISTRICT_COLORS)
+            ]
+            self.canvas.itemconfig(self.temp_shape, fill=color)
+            box = (
+                min(coords[0], coords[2]),
+                min(coords[1], coords[3]),
+                max(coords[0], coords[2]),
+                max(coords[1], coords[3]),
+            )
+            self.shapes.append((elem, (box, color)))
+        else:
+            self.shapes.append((elem, coords))
         self.temp_shape = None
 
     def save_image(self):
@@ -101,7 +118,9 @@ class MapEditor(tk.Tk):
             elif elem == "river":
                 draw.line(coords, fill="blue", width=4)
             elif elem == "district":
-                draw.rectangle(coords, outline="gray", width=2)
+                box, color = coords if isinstance(coords, tuple) and len(coords) == 2 and isinstance(coords[0], tuple) else (coords, None)
+                fill = color if self.political_var.get() and color else None
+                draw.rectangle(box, outline="gray", width=2, fill=fill)
             else:
                 x1, y1, x2, y2 = coords
                 if elem == "square":
@@ -131,9 +150,10 @@ class MapEditor(tk.Tk):
             num_shapes=10,
             num_districts=self.district_var.get(),
         )
-        for box in data["districts"]:
-            self.canvas.create_rectangle(box, outline="gray", width=2)
-            self.shapes.append(("district", box))
+        for box, color in data["districts"]:
+            fill = color if self.political_var.get() else ""
+            self.canvas.create_rectangle(box, outline="gray", width=2, fill=fill)
+            self.shapes.append(("district", (box, color)))
         for shape_type, shape_data in data["buildings"]:
             if shape_type == "polygon":
                 self.canvas.create_polygon(shape_data, fill=mg.SHAPE_COLOR)
