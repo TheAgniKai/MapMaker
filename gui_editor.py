@@ -74,16 +74,28 @@ class MapEditor(tk.Tk):
         if elem == "road":
             self.canvas.create_line(coords, fill=mg.SHAPE_COLOR, width=3)
         elif elem == "wall":
-            self.canvas.create_line(coords, fill=mg.SHAPE_COLOR, width=5)
+            if isinstance(coords[0], (tuple, list)):
+                pts = coords + [coords[0]]
+                self.canvas.create_line(pts, fill=mg.SHAPE_COLOR, width=5)
+            else:
+                self.canvas.create_line(coords, fill=mg.SHAPE_COLOR, width=5)
         elif elem == "river":
             self.canvas.create_line(coords, fill="blue", width=4)
         elif elem == "district":
-            if self.political_var.get() and "color" in shape:
-                self.canvas.create_rectangle(
-                    coords, outline="gray", fill=shape["color"], width=2
-                )
+            if isinstance(coords[0], (tuple, list)):
+                if self.political_var.get() and "color" in shape:
+                    self.canvas.create_polygon(
+                        coords, outline="gray", fill=shape["color"], width=2
+                    )
+                else:
+                    self.canvas.create_polygon(coords, outline="gray", width=2)
             else:
-                self.canvas.create_rectangle(coords, outline="gray", width=2)
+                if self.political_var.get() and "color" in shape:
+                    self.canvas.create_rectangle(
+                        coords, outline="gray", fill=shape["color"], width=2
+                    )
+                else:
+                    self.canvas.create_rectangle(coords, outline="gray", width=2)
         elif elem == "polygon":
             if isinstance(coords[0], (tuple, list)):
                 self.canvas.create_polygon(coords, fill=mg.SHAPE_COLOR)
@@ -151,16 +163,26 @@ class MapEditor(tk.Tk):
             if elem == "road":
                 draw.line(coords, fill=mg.SHAPE_COLOR, width=3)
             elif elem == "wall":
-                draw.line(coords, fill=mg.SHAPE_COLOR, width=5)
+                if isinstance(coords[0], (tuple, list)):
+                    pts = coords + [coords[0]]
+                    draw.line(pts, fill=mg.SHAPE_COLOR, width=5)
+                else:
+                    draw.line(coords, fill=mg.SHAPE_COLOR, width=5)
             elif elem == "river":
                 draw.line(coords, fill="blue", width=4)
             elif elem == "district":
-                if self.political_var.get() and "color" in shape:
-                    draw.rectangle(
-                        coords, outline="gray", fill=shape["color"], width=2
-                    )
+                if isinstance(coords[0], (tuple, list)):
+                    if self.political_var.get() and "color" in shape:
+                        draw.polygon(coords, outline="gray", fill=shape["color"], width=2)
+                    else:
+                        draw.polygon(coords, outline="gray", width=2)
                 else:
-                    draw.rectangle(coords, outline="gray", width=2)
+                    if self.political_var.get() and "color" in shape:
+                        draw.rectangle(
+                            coords, outline="gray", fill=shape["color"], width=2
+                        )
+                    else:
+                        draw.rectangle(coords, outline="gray", width=2)
             else:
                 x1, y1, x2, y2 = coords
                 if elem == "square":
@@ -189,9 +211,13 @@ class MapEditor(tk.Tk):
             self.height,
             num_shapes=10,
             num_districts=self.district_var.get(),
+            num_walls=1,
         )
         for dist in data["districts"]:
-            shape = {"type": "district", "coords": dist["box"], "color": dist["color"]}
+            shape = {"type": "district", "coords": dist["poly"], "color": dist["color"]}
+            self.shapes.append(shape)
+        for wall in data["walls"]:
+            shape = {"type": "wall", "coords": wall}
             self.shapes.append(shape)
         for shape_type, shape_data in data["buildings"]:
             if shape_type == "polygon":
