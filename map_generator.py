@@ -1,5 +1,6 @@
 import argparse
 import random
+import math
 from PIL import Image, ImageDraw
 
 # Default canvas size. These values can be overridden via command line
@@ -90,39 +91,99 @@ def random_polygon_from_box(box, min_vertices=3, max_vertices=6):
     return points
 
 
+def polygon_bounds(points):
+    """Return bounding box for a list of points."""
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def generate_irregular_polygon(cx, cy, avg_radius, irregularity=0.3, spikeyness=0.2, num_vertices=8):
+    """Generate an irregular polygon around a center point."""
+    irregularity = max(0, min(irregularity, 1)) * 2 * math.pi / num_vertices
+    spikeyness = max(0, min(spikeyness, 1)) * avg_radius
+
+    angle_steps = []
+    lower = (2 * math.pi / num_vertices) - irregularity
+    upper = (2 * math.pi / num_vertices) + irregularity
+    sum_steps = 0
+    for _ in range(num_vertices):
+        step = random.uniform(lower, upper)
+        angle_steps.append(step)
+        sum_steps += step
+    k = sum_steps / (2 * math.pi)
+    angle_steps = [step / k for step in angle_steps]
+
+    points = []
+    angle = random.uniform(0, 2 * math.pi)
+    for step in angle_steps:
+        r = max(5, random.gauss(avg_radius, spikeyness))
+        x = cx + r * math.cos(angle)
+        y = cy + r * math.sin(angle)
+        points.append((int(x), int(y)))
+        angle += step
+    return points
+
+
 def generate_districts(width, height, count, max_attempts=1000):
-    """Generate rectangular district areas that do not overlap."""
+    """Generate irregular district polygons that do not overlap."""
     districts = []
     boxes = []
     attempts = 0
     while len(districts) < count and attempts < max_attempts:
-        w = random.randint(width // 6, width // 2)
-        h = random.randint(height // 6, height // 2)
-        x = random.randint(0, width - w)
-        y = random.randint(0, height - h)
-        box = (x, y, x + w, y + h)
+        radius = random.randint(min(width, height) // 8, min(width, height) // 3)
+        cx = random.randint(radius, width - radius)
+        cy = random.randint(radius, height - radius)
+        poly = generate_irregular_polygon(cx, cy, radius)
+        box = polygon_bounds(poly)
         if any(intersects(box, b) for b in boxes):
             attempts += 1
             continue
         boxes.append(box)
-        districts.append({"box": box, "color": random.choice(DISTRICT_COLORS)})
+        districts.append({"poly": poly, "color": random.choice(DISTRICT_COLORS)})
     return districts
 
 
-def generate_map_data(width, height, num_shapes=10, num_districts=0):
+def generate_walls(width, height, count=1):
+    """Generate one or more irregular wall polygons around the map."""
+    walls = []
+    margin = min(width, height) // 15
+    cx, cy = width // 2, height // 2
+    for i in range(count):
+        radius = min(width, height) // 2 - margin - i * (margin // 2)
+        wall = generate_irregular_polygon(
+            cx,
+            cy,
+            radius,
+            irregularity=0.1 + 0.05 * i,
+            spikeyness=0.05,
+            num_vertices=12,
+        )
+        walls.append(wall)
+    return walls
+
+
+def generate_map_data(width, height, num_shapes=10, num_districts=0, num_walls=1):
     return {
         "buildings": generate_buildings(width, height, num_shapes),
         "roads": [],
         "rivers": [],
         "districts": generate_districts(width, height, num_districts) if num_districts > 0 else [],
-        "walls": [],
+        "walls": generate_walls(width, height, num_walls) if num_walls > 0 else [],
     }
 
 
-def draw_map(filename="map.png", width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, num_shapes=10, num_districts=0):
+def draw_map(
+    filename="map.png",
+    width=DEFAULT_WIDTH,
+    height=DEFAULT_HEIGHT,
+    num_shapes=10,
+    num_districts=0,
+    num_walls=1,
+):
     img = Image.new("RGB", (width, height), BG_COLOR)
     draw = ImageDraw.Draw(img)
-    data = generate_map_data(width, height, num_shapes, num_districts)
+    data = generate_map_data(width, height, num_shapes, num_districts, num_walls)
     for shape_type, shape_data in data["buildings"]:
         if shape_type == "l":
             draw_l_shape(draw, shape_data)
@@ -131,9 +192,12 @@ def draw_map(filename="map.png", width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, num
         else:
             draw.rectangle(shape_data, fill=SHAPE_COLOR)
     for district in data["districts"]:
-        box = district["box"]
         color = district["color"]
-        draw.rectangle(box, outline="gray", fill=color, width=2)
+        poly = district["poly"]
+        draw.polygon(poly, outline="gray", fill=color, width=2)
+    for wall in data["walls"]:
+        pts = wall + [wall[0]]
+        draw.line(pts, fill=SHAPE_COLOR, width=5)
     img.save(filename)
     print(f"Map saved to {filename}")
 
@@ -145,6 +209,7 @@ if __name__ == "__main__":
     parser.add_argument("--preset", choices=sorted(RESOLUTION_PRESETS.keys()), help="use a resolution preset")
     parser.add_argument("--num-shapes", type=int, default=10, help="number of buildings")
     parser.add_argument("--districts", type=int, default=0, help="number of districts to generate")
+    parser.add_argument("--walls", type=int, default=1, help="number of wall layers")
     parser.add_argument("--output", type=str, default="map.png", help="output image path")
     args = parser.parse_args()
 
@@ -159,4 +224,5 @@ if __name__ == "__main__":
         height=args.height,
         num_shapes=args.num_shapes,
         num_districts=args.districts,
+        num_walls=args.walls,
     )
