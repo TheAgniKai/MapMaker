@@ -49,3 +49,16 @@ python generate_map.py --output sample_map.png
 
 Check the generated image file to view the result.
 
+## GUI Editor
+
+An experimental GUI editor is available for interactive map creation. Launch it with:
+
+```bash
+python gui_editor.py
+```
+
+Use the toolbar on the right to choose between buildings, roads, and walls. Click
+and drag on the canvas to place elements. Press **Save** to export your map to a
+PNG file.
+
+
