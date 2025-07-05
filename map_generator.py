@@ -99,13 +99,46 @@ def generate_districts(width, height, count, max_attempts=1000):
     return districts
 
 
+def generate_walls(width, height, segments=6):
+    """Create a wavy perimeter polygon slightly inside the canvas edges."""
+    margin = max(10, int(min(width, height) * 0.05))
+    jitter = max(2, margin // 2)
+    points = []
+
+    # Top edge
+    for i in range(segments + 1):
+        x = margin + (width - 2 * margin) * i / segments
+        y = margin + random.randint(-jitter, jitter)
+        points.append((x, y))
+
+    # Right edge
+    for i in range(1, segments + 1):
+        x = width - margin + random.randint(-jitter, jitter)
+        y = margin + (height - 2 * margin) * i / segments
+        points.append((x, y))
+
+    # Bottom edge
+    for i in range(1, segments + 1):
+        x = width - margin - (width - 2 * margin) * i / segments
+        y = height - margin + random.randint(-jitter, jitter)
+        points.append((x, y))
+
+    # Left edge
+    for i in range(1, segments):
+        x = margin + random.randint(-jitter, jitter)
+        y = height - margin - (height - 2 * margin) * i / segments
+        points.append((x, y))
+
+    return points
+
+
 def generate_map_data(width, height, num_shapes=10, num_districts=0):
     return {
         "buildings": generate_buildings(width, height, num_shapes),
         "roads": [],
         "rivers": [],
         "districts": generate_districts(width, height, num_districts) if num_districts > 0 else [],
-        "walls": [],
+        "walls": generate_walls(width, height),
     }
 
 
@@ -122,6 +155,8 @@ def draw_map(filename="map.png", width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, num
             draw.rectangle(shape_data, fill=SHAPE_COLOR)
     for box in data["districts"]:
         draw.rectangle(box, outline="gray", width=2)
+    if data["walls"]:
+        draw.line(data["walls"] + [data["walls"][0]], fill=SHAPE_COLOR, width=5)
     img.save(filename)
     print(f"Map saved to {filename}")
 
