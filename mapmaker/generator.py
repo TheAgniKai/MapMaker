@@ -3,6 +3,8 @@ import random
 import math
 from PIL import Image, ImageDraw
 
+from .roads import generate_road_network
+
 # Default canvas size. These values can be overridden via command line
 # arguments or when calling the drawing functions directly.
 DEFAULT_WIDTH, DEFAULT_HEIGHT = 800, 600
@@ -163,10 +165,24 @@ def generate_walls(width, height, count=1):
     return walls
 
 
-def generate_map_data(width, height, num_shapes=10, num_districts=0, num_walls=1):
+def generate_roads(points, width, height):
+    """Return a list of road line segments from control points."""
+    if not points:
+        return []
+    return generate_road_network(points, width, height)
+
+
+def generate_map_data(
+    width,
+    height,
+    num_shapes=10,
+    num_districts=0,
+    num_walls=1,
+    road_points=None,
+):
     return {
         "buildings": generate_buildings(width, height, num_shapes),
-        "roads": [],
+        "roads": generate_roads(road_points or [], width, height),
         "rivers": [],
         "districts": generate_districts(width, height, num_districts) if num_districts > 0 else [],
         "walls": generate_walls(width, height, num_walls) if num_walls > 0 else [],
@@ -195,6 +211,8 @@ def draw_map(
         color = district["color"]
         poly = district["poly"]
         draw.polygon(poly, outline="gray", fill=color, width=2)
+    for line in data["roads"]:
+        draw.line(line, fill="gray", width=2)
     for wall in data["walls"]:
         pts = wall + [wall[0]]
         draw.line(pts, fill=SHAPE_COLOR, width=5)
@@ -202,7 +220,7 @@ def draw_map(
     print(f"Map saved to {filename}")
 
 
-if __name__ == "__main__":
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Generate a procedural map")
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH, help="map width")
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT, help="map height")
@@ -210,13 +228,24 @@ if __name__ == "__main__":
     parser.add_argument("--num-shapes", type=int, default=10, help="number of buildings")
     parser.add_argument("--districts", type=int, default=0, help="number of districts to generate")
     parser.add_argument("--walls", type=int, default=1, help="number of wall layers")
+    parser.add_argument(
+        "--road-points",
+        type=int,
+        nargs="*",
+        help="Pairs of x y coordinates for major roads",
+    )
     parser.add_argument("--output", type=str, default="map.png", help="output image path")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.preset:
         args.width, args.height = RESOLUTION_PRESETS[args.preset]
     if not validate_resolution(args.width, args.height):
         parser.error(f"Resolution must be within 1x1 and {MAX_WIDTH}x{MAX_HEIGHT}")
+
+    points = []
+    if args.road_points and len(args.road_points) % 2 == 0:
+        it = iter(args.road_points)
+        points = [(next(it), next(it)) for _ in range(len(args.road_points) // 2)]
 
     draw_map(
         filename=args.output,
@@ -225,4 +254,9 @@ if __name__ == "__main__":
         num_shapes=args.num_shapes,
         num_districts=args.districts,
         num_walls=args.walls,
+        road_points=points,
     )
+
+
+if __name__ == "__main__":
+    main()
