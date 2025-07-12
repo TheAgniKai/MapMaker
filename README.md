@@ -34,23 +34,23 @@ MapMaker is a project aimed at creating a simple map generator for tabletop game
 The project is still under development, but a typical command to generate a map with a custom size might look like:
 
 ```bash
-python map_generator.py --width 1200 --height 800 --output sample_map.png
+python generate.py --width 1200 --height 800 --output sample_map.png
 ```
 
 You can also use resolution presets (1080p, 4k, 8k) or generate districts:
 
 ```bash
-python map_generator.py --preset 4k --districts 3 --output big_map.png
+python generate.py --preset 4k --districts 3 --output big_map.png
 ```
 
 This would produce a map saved as `sample_map.png` in the current directory.
 
 ## Generating a Sample Map
 
-Once the generator script is implemented, you can create a quick sample map with default settings using:
+You can create a quick sample map with default settings using:
 
 ```bash
-python map_generator.py --output sample_map.png
+python generate.py --output sample_map.png
 ```
 
 Check the generated image file to view the result.
